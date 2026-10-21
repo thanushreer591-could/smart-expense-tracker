@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Expense Tracker for Students</title>
+  <link rel="stylesheet" href="style.css?v=2" />
+</head>
+<body>
+
+  <!-- ============================================================
+       SIDEBAR  (navigation + quick "add" button)
+       ============================================================ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-logo">₹</div>
+      <div class="brand-text">
+        <h1>Smart Expense</h1>
+        <span>Tracker for Students</span>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-view="dashboard">
+        <span class="nav-icon">📊</span> Dashboard
+      </button>
+      <button class="nav-item" data-view="transactions">
+        <span class="nav-icon">🧾</span> Transactions
+      </button>
+      <button class="nav-item" data-view="budget">
+        <span class="nav-icon">🎯</span> Budget
+      </button>
+      <button class="nav-item" data-view="goals">
+        <span class="nav-icon">🏆</span> Savings Goals
+      </button>
+    </nav>
+
+    <button type="button" class="btn btn-primary btn-block" id="openAddBtn">＋ Add Transaction</button>
+
+    <div class="sidebar-footer">
+      <p>Data is saved in your browser (localStorage). Refreshing keeps your records.</p>
+    </div>
+  </aside>
+
+  <!-- Dark overlay shown on mobile when the sidebar is open -->
+  <div class="overlay" id="overlay"></div>
+
+  <!-- ============================================================
+       MAIN CONTENT
+       ============================================================ -->
+  <main class="main">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="Toggle menu">☰</button>
+      <div class="topbar-title">
+        <h2 id="viewTitle">Dashboard</h2>
+        <p id="viewSubtitle">A quick look at your money this month</p>
+      </div>
+      <button type="button" class="btn btn-primary" id="openAddBtnTop">＋ Add</button>
+    </header>
+
+    <!-- Global message area (validations, success, alerts) -->
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <!-- ================= VIEW: DASHBOARD ================= -->
+    <section class="view active" id="view-dashboard">
+
+      <!-- Budget alert banner -->
+      <div class="alert alert-danger hidden" id="budgetAlert"></div>
+
+      <!-- Summary cards -->
+      <div class="cards">
+        <article class="card card-income">
+          <div class="card-top">
+            <span class="card-icon">💰</span>
+            <span class="card-label">Total Income</span>
+          </div>
+          <h3 class="card-value" id="totalIncome">₹0</h3>
+          <p class="card-note">Money you received</p>
+        </article>
+
+        <article class="card card-expense">
+          <div class="card-top">
+            <span class="card-icon">🧾</span>
+            <span class="card-label">Total Expenses</span>
+          </div>
+          <h3 class="card-value" id="totalExpense">₹0</h3>
+          <p class="card-note">Money you spent</p>
+        </article>
+
+        <article class="card card-balance">
+          <div class="card-top">
+            <span class="card-icon">⚖️</span>
+            <span class="card-label">Remaining Balance</span>
+          </div>
+          <h3 class="card-value" id="balance">₹0</h3>
+          <p class="card-note">Income − Expenses</p>
+        </article>
+
+        <article class="card card-savings">
+          <div class="card-top">
+            <span class="card-icon">🏦</span>
+            <span class="card-label">Savings</span>
+          </div>
+          <h3 class="card-value" id="savings">₹0</h3>
+          <p class="card-note">Put aside from your balance</p>
+        </article>
+      </div>
+
+      <!-- Budget progress -->
+      <div class="panel" id="budgetProgressPanel">
+        <div class="panel-head">
+          <h3>Monthly Budget</h3>
+          <span class="pill" id="budgetPill">Not set</span>
+        </div>
+        <div class="progress">
+          <div class="progress-bar" id="budgetBar" style="width:0%"></div>
+        </div>
+        <p class="muted" id="budgetText">Set a monthly budget in the Budget tab.</p>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Spending by Category</h3>
+            <span class="muted small">Expenses only</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="donutChart" width="260" height="260"></canvas>
+            <ul class="legend" id="donutLegend"></ul>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Category Breakdown</h3>
+            <span class="muted small">Top spending</span>
+          </div>
+          <div class="bars" id="categoryBars"></div>
+        </div>
+      </div>
+
+      <!-- Recent transactions -->
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Recent Transactions</h3>
+          <button class="link-btn" data-goto="transactions">View all →</button>
+        </div>
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th><th>Title</th><th>Category</th><th>Type</th><th class="right">Amount</th>
+              </tr>
+            </thead>
+            <tbody id="recentBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= VIEW: TRANSACTIONS ================= -->
+    <section class="view" id="view-transactions">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>All Transactions</h3>
+          <button type="button" class="btn btn-primary btn-sm" id="openAddBtnList">＋ Add Transaction</button>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+          <div class="field">
+            <label for="filterFrom">From date</label>
+            <input type="date" id="filterFrom" />
+          </div>
+          <div class="field">
+            <label for="filterTo">To date</label>
+            <input type="date" id="filterTo" />
+          </div>
+          <div class="field">
+            <label for="filterCategory">Category</label>
+            <select id="filterCategory">
+              <option value="all">All categories</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="filterType">Type</label>
+            <select id="filterType">
+              <option value="all">All types</option>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </select>
+          </div>
+          <div class="field field-action">
+            <label>&nbsp;</label>
+            <button class="btn btn-ghost" id="clearFilters">Clear filters</button>
+          </div>
+        </div>
+
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th><th>Title</th><th>Category</th><th>Type</th>
+                <th class="right">Amount</th><th class="center">Action</th>
+              </tr>
+            </thead>
+            <tbody id="transactionsBody"></tbody>
+          </table>
+        </div>
+        <p class="muted small" id="filterSummary"></p>
+      </div>
+    </section>
+
+    <!-- ================= VIEW: BUDGET ================= -->
+    <section class="view" id="view-budget">
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><h3>Set Monthly Budget</h3></div>
+          <p class="muted">Your budget is the maximum you plan to spend in a month. You'll get an alert when you cross it.</p>
+          <form id="budgetForm" class="form" novalidate>
+            <div class="field">
+              <label for="budgetInput">Monthly budget (₹)</label>
+              <input type="number" id="budgetInput" min="0" step="1" placeholder="e.g. 8000" />
+              <small class="error" id="budgetError"></small>
+            </div>
+            <button class="btn btn-primary" type="submit">Save Budget</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>This Month</h3></div>
+          <div class="mini-stats">
+            <div class="mini">
+              <span class="mini-label">Budget</span>
+              <strong id="budgetMini">₹0</strong>
+            </div>
+            <div class="mini">
+              <span class="mini-label">Spent</span>
+              <strong id="spentMini">₹0</strong>
+            </div>
+            <div class="mini">
+              <span class="mini-label">Left</span>
+              <strong id="leftMini">₹0</strong>
+            </div>
+          </div>
+          <div class="progress">
+            <div class="progress-bar" id="budgetBar2" style="width:0%"></div>
+          </div>
+          <p class="muted small" id="budgetStatusText"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= VIEW: GOALS ================= -->
+    <section class="view" id="view-goals">
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><h3>Create a Savings Goal</h3></div>
+          <form id="goalForm" class="form" novalidate>
+            <div class="field">
+              <label for="goalName">Goal name</label>
+              <input type="text" id="goalName" placeholder="e.g. New Laptop" maxlength="40" />
+              <small class="error" id="goalNameError"></small>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="goalTarget">Target (₹)</label>
+                <input type="number" id="goalTarget" min="1" step="1" placeholder="50000" />
+                <small class="error" id="goalTargetError"></small>
+              </div>
+              <div class="field">
+                <label for="goalSaved">Saved so far (₹)</label>
+                <input type="number" id="goalSaved" min="0" step="1" placeholder="0" />
+              </div>
+            </div>
+            <button class="btn btn-primary" type="submit">Add Goal</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Your Goals</h3>
+            <span class="pill" id="goalCount">0 goals</span>
+          </div>
+          <div class="goals" id="goalList"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================================
+       ADD / EDIT TRANSACTION MODAL
+       ============================================================ -->
+  <div class="modal" id="transactionModal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="modalTitle">Add Transaction</h3>
+        <button class="icon-btn" id="closeModal" aria-label="Close">✕</button>
+      </div>
+
+      <form id="transactionForm" class="form" novalidate>
+        <div class="field">
+          <label for="txTitle">Title</label>
+          <input type="text" id="txTitle" placeholder="e.g. Bus pass" maxlength="60" />
+          <small class="error" id="txTitleError"></small>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="txAmount">Amount (₹)</label>
+            <input type="number" id="txAmount" min="0" step="0.01" placeholder="e.g. 250" />
+            <small class="error" id="txAmountError"></small>
+          </div>
+          <div class="field">
+            <label for="txDate">Date</label>
+            <input type="date" id="txDate" />
+            <small class="error" id="txDateError"></small>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Type</label>
+            <div class="radio-group">
+              <label class="radio">
+                <input type="radio" name="txType" value="expense" checked /> <span>Expense</span>
+              </label>
+              <label class="radio">
+                <input type="radio" name="txType" value="income" /> <span>Income</span>
+              </label>
+            </div>
+          </div>
+          <div class="field">
+            <label for="txCategory">Category</label>
+            <select id="txCategory"></select>
+            <small class="hint" id="categoryHint">Tip: type a title and we'll suggest a category.</small>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="cancelModal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveTxBtn">Save Transaction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js?v=2"></script>
+</body>
+</html>
